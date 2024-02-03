@@ -1,17 +1,35 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Burst;
 using Unity.Entities;
 using Unity.Transforms;
 using UnityEngine;
 
 public partial struct RotatingCubeSystem : ISystem
 {
+    public void OnCreate(ref SystemState state)
+    {
+        state.RequireForUpdate<RotateSpeed>();
+    }
+
+    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        foreach (var (localTransform, rotateSpeed)
-            in SystemAPI.Query<RefRW<LocalTransform>, RefRO<RotateSpeed>>())
+        RotatingCubeJob rotatingCubeJob = new RotatingCubeJob
         {
-            localTransform.ValueRW = localTransform.ValueRW.RotateY(rotateSpeed.ValueRO.value * SystemAPI.Time.DeltaTime);
+            deltaTime = SystemAPI.Time.DeltaTime
+        };
+        rotatingCubeJob.ScheduleParallel();
+    }
+
+    [BurstCompile]
+    public partial struct RotatingCubeJob : IJobEntity
+    {
+        public float deltaTime;
+
+        public void Execute(ref LocalTransform localTransform, in RotateSpeed rotateSpeed)
+        {
+            localTransform = localTransform.RotateY(rotateSpeed.value * deltaTime);
         }
     }
 }
